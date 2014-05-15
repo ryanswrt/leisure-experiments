@@ -1,0 +1,60 @@
+* Chat
+
+[[org:board]]
+
+
+* Data
+:properties:
+:note: sidebar
+:end:
+
+#+NAME: chat
+#+BEGIN_SRC yaml :flowLevel 2
+type: chatbox
+chat:
+  - [Hello, Ryan]
+#+END_SRC
+
+#+BEGIN_SRC html :defview chatbox
+<h3>Chat</h3>
+<label> Name:</label><input placeholder="Name">
+
+<div>
+    {{#each chat}}
+    <div>
+    <span style="color:gray">{{this.[0]}}:</span> 
+    <span>{{this.[1]}}</span> 
+    <span style='float:right; color:green'>{{this.[2]}}</span>
+    </div>
+    {{/each}}
+</div>
+
+<input type='text' id='chatinput'>
+<button id='chatbutton'>Chats</button>
+<script>Leisure.hookupTable()</script>
+#+END_SRC
+
+#+BEGIN_SRC coffeescript :results def
+
+name = "Anon"
+
+Leisure.hookupTable = ->
+  view = $(Templating.currentView)
+  chatinput = view.find('chatinput')
+  nameinput = view.find('nameinput;)
+  nameinput.val(name)
+  view.bind 'click', (e)->
+    if block = Leisure.viewBlock e.target
+      if e.target.id == 'chatbutton' && message = $('#chatinput').val()     
+        data = block.yaml
+        date = new Date()
+        name = nameinput.val()
+        data.chat.push([date.toTimeString(), message, name])
+        Leisure.setData block._id, data
+
+#+END_SRC
+
+* Local data
+:PROPERTIES:
+:local: true
+:END:
