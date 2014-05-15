@@ -1,6 +1,6 @@
 * Chat
 
-[[org:board]]
+[[org:chat]]
 
 
 * Data
@@ -12,25 +12,25 @@
 #+BEGIN_SRC yaml :flowLevel 2
 type: chatbox
 chat:
-  - [Hello, Ryan]
+  - [MOD, Hello, Ryan]
 #+END_SRC
 
 #+BEGIN_SRC html :defview chatbox
 <h3>Chat</h3>
-<label> Name:</label><input placeholder="Name">
+<label> Name:</label><input placeholder="Name" id='nameinput'>
 
-<div>
+<div style="height:20em; overflow:scroll; background-color:white">
     {{#each chat}}
     <div>
     <span style="color:gray">{{this.[0]}}:</span> 
     <span>{{this.[1]}}</span> 
-    <span style='float:right; color:green'>{{this.[2]}}</span>
+    <span style='float:right; color:green'>-{{this.[2]}}</span>
     </div>
     {{/each}}
 </div>
 
-<input type='text' id='chatinput'>
-<button id='chatbutton'>Chats</button>
+<input type='text' id='chatinput' style="width:70%">
+<button id='chatbutton'>Chat</button>
 <script>Leisure.hookupTable()</script>
 #+END_SRC
 
@@ -40,12 +40,12 @@ name = "Anon"
 
 Leisure.hookupTable = ->
   view = $(Templating.currentView)
-  chatinput = view.find('chatinput')
-  nameinput = view.find('nameinput;)
+  chatinput = view.find('#chatinput')
+  nameinput = view.find('#nameinput')
   nameinput.val(name)
   view.bind 'click', (e)->
     if block = Leisure.viewBlock e.target
-      if e.target.id == 'chatbutton' && message = $('#chatinput').val()     
+      if e.target.id == 'chatbutton' && message = chatinput.val()     
         data = block.yaml
         date = new Date()
         name = nameinput.val()
