@@ -1,0 +1,123 @@
+Leisure.userName = 'Anon'
+id = 0
+unregistered = true
+flap_power = 10
+gap_size = 80
+speed = 5
+spacing = 150
+gravity = -0.91
+tickspeed = 50
+blag = ->
+  asd
+
+gen_color = (id)->
+  console.log(id)
+  "rgb("+(id*25)*(id%2)+","+id*25*(id%3)+","+id*25*(id%5)+")"
+
+make_user = (id,y,yv,name,color, alive, score, immortality) ->
+  console.log(color)
+  if not color
+    color = 'rgb(255,0,0)'
+  {id:id ,y:y ,yv:yv ,name:name ,color:color,alive:alive,score:score,immortality:immortality}
+
+Leisure.initWorld = ->
+  gamecanvas = $(Templating.currentView).find('#gamecanvas')[0]
+  gamecanvas.width = 250;
+  gamecanvas.height = 400;
+  inputId = $("[data-view-link='game']").attr 'data-view-id'
+
+  #$(Templating.currentView).keypress (e)->
+  Leisure.flap = ->
+    name = Leisure.userName = $($("[data-view-link='game']")[0].shadowRoot.firstChild).find('input').val()
+    block = Leisure.getBlock(inputId)
+    data = block.yaml
+    date = new Date()
+    if unregistered
+      id = block.yaml.world.players.length
+      user = make_user id,200,0,name,gen_color(id), true, 0, 1
+      block.yaml.world.players.push(user)
+      unregistered = false
+    else
+      user = block.yaml.world.players[id]
+      user.yv = -flap_power
+      block.yaml.world.players[id] = user
+
+
+    Leisure.setData block._id, data
+
+
+
+  Leisure.tick = ->
+    block = Leisure.getBlock(inputId)
+    data = block.yaml
+    data.world = simulate_world(data.world)
+    render_world(data.world)
+    window.setTimeout ->
+    Leisure.setData block._id, data
+    , 55
+    window.setTimeout(Leisure.tick,tickspeed)
+
+
+
+  render_world = (world)->
+    gamecanvas = $($("[data-view-link='view']")[0].shadowRoot.firstChild).find('#gamecanvas')[0]
+    $(gamecanvas).attr("contentEditable", "true")
+    gamecanvas.contentEditable = true
+    $(gamecanvas).focus()
+
+    ctx = gamecanvas.getContext '2d'
+    x = world.x
+    pipes = world.pipes
+    players = world.players
+    ctx.clearRect(0,0,gamecanvas.width,gamecanvas.height)
+    ctx.fillStyle ='rgba(100,255,100,1)'
+    ctx.fillRect(0,gamecanvas.height-50,gamecanvas.width,50)
+
+    ctx.fillStyle ='rgba(10,255,10,1)'
+    pipes.forEach (pipe)->
+      ctx.fillRect(pipe.x,0,50,pipe.y)
+      ctx.fillRect(pipe.x,pipe.y+gap_size,50,gamecanvas.height-(pipe.y+gap_size))
+
+    players.forEach (player)->
+      if player.alive
+        ctx.fillStyle = player.color
+        ctx.fillText(player.name + ' ' + player.score,50,player.y-15)
+        ctx.fillRect(50,player.y,15,15)
+        if player.immortality > 0
+          ctx.fillText('shield',50,player.y+30)
+      else
+        ctx.fillStyle = player.color
+        ctx.fillText(player.name,50,player.y-15)
+        ctx.fillRect(pipes[0].x,player.y,15,15)
+
+  simulate_world = (world)->
+    world.x += speed
+    world.players.forEach (player)->
+      if player.alive
+        player.yv = player.yv - gravity
+        player.y += player.yv
+        player.immortality -= tickspeed/1000
+        if (world.pipes[0].x < 65 && world.pipes[0].x > 0) &&
+        (player.y + 15 > world.pipes[0].y + gap_size || player.y < world.pipes[0].y)
+
+          if player.immortality < 0
+            player.alive = false
+      else
+        player.yv = 0
+
+    if world.pipes[0].x < 0 - gap_size
+        console.log('removing pipe')
+        world.pipes.shift()
+        world.pipes.push({x:world.pipes[world.pipes.length-1].x+spacing,y:Math.random()*(gamecanvas.height-150)+50})
+        world.players.forEach (player)->
+          player.score += 1
+          #Respawn the player
+          if not player.alive
+            player.alive = true
+            player.y = 200
+            player.score = 0
+            player.immortality = 2
+    world.pipes.forEach (pipe)->
+      pipe.x -= speed
+
+    world
