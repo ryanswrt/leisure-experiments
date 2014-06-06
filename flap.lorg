@@ -6,11 +6,30 @@
 [[org:game]]
 [[org:ticking]]
 
+* Description
+:properties:
+:note: sidebar
+:end:
+This is a simple, multiplayer Flappy Bird-like game
+
+The aim is to fly through the gaps in the tree trunks,
+by flapping your wings at the right time
+
+Enter your name, and hit start; if the game is already
+running, just hit flap, and you will join the game.
+
+
 * Data
 :properties:
 :note: sidebar
 :hidden: true
 :end:
+
+
+These values represent the initial state of the world,
+as well as the pipe locations.
+
+Try changing the values to see what they do!
 
 #+NAME: game
 #+BEGIN_SRC yaml :flowLevel 2
@@ -63,9 +82,19 @@ type: canvas
 * Views
 
 This is a kluge to react to a ticking update
+Essentially, all html views get re-rendered every time
+a change is made to the data, so, this calls the render
+function every time the data updates by way of the update
+mechanism.
+
+** TODO move into controller code, in an update event callback
+
 #+BEGIN_SRC html :defview ticking
 <script>Leisure.renderCanvas()</script>
 #+END_SRC
+
+Draw a score list of current players.
+** TODO make this a high-score list, instead of/as well as displaying current scores
 
 #+BEGIN_SRC html :defview lazyworld
 <div>
@@ -80,9 +109,14 @@ This is a kluge to react to a ticking update
 <script>Leisure.renderCanvas()</script>
 #+END_SRC
 
+Player name inputs. These are bound to a locally persistent data storage variable
+
 #+BEGIN_SRC html :defview localState/userName
   <label> Name:</label><input placeholder="Name" data-value='userName'>{{{bind}}}
 #+END_SRC
+
+The HTML5 canvas element, that stores all of the binary game assets we are going to use
+Check out http://jsfiddle.net/gbarnett/VG44a/ to see how we are doing sprite colorization
 
 #+BEGIN_SRC html :defview canvas
   <canvas id="gamecanvas" style="background-color:rgb(150,150,255); width:256px; height:400px"></canvas>
@@ -106,6 +140,7 @@ This is a kluge to react to a ticking update
 
   <script>
     Leisure.initWorld();
+    //This bit is to capture keyboard input, not yet implemented
     Leisure.findViews('canvas')
       .find('#gamecanvas')
       .attr("contentEditable", "true")
@@ -113,15 +148,31 @@ This is a kluge to react to a ticking update
   </script>
 #+END_SRC
 
+Game controls
+
+** TODO make pretty image buttons
+** TODO implement keyboard input
+
 #+BEGIN_SRC html :defview localState/controlbox
 <div>
-  <button id='chatbutton' onclick='Leisure.flap()'>Flap</button>
+  <button id='flapbutton' onclick='Leisure.flap()'>Flap</button>
   <button id='tickbutton' onclick='Leisure.tick()'>Start</button>
 </div>
 #+END_SRC
 
 
 * Source
+
+Coffeescript source file for the game.
+
+Game is split into a simulation loop, that does collision detection,
+applies gravity to players, and moves pipes forward
+
+** TODO make pipes be dependent on global x state, to enable "reversing" of time
+** TODO store high-scores
+** TODO disallow duplicate player names (bind with leisure users?)
+** TODO allow custom colors?
+
 #+BEGIN_SRC coffee :results def
   ## Constants
   {
@@ -180,8 +231,8 @@ This is a kluge to react to a ticking update
         game.world.players = []
         userId = 1
       user = make_user userId,200,0,userName,gen_color(userId), true, 0, 1
-      game.world.players.push(user)
-      make_sprite(user.color, userId)
+      game.world.players.push user
+      make_sprite user.color, userId
       state.userId = userId
       positions.playerpositions.push [user.y,user.yv]
       setDataNamed 'state', state
@@ -190,11 +241,11 @@ This is a kluge to react to a ticking update
       user = positions.playerpositions[userId]
       user[1] = -game.world.constants.flap_power
       positions.playerpositions[userId] = user
-      #console.log(window.gameaudio.flap1)
+
       rnd = Math.floor( 1 + 4 * Math.random())
-      #console.log rnd
+
       canvas.find("#sfx_flap#{rnd}")[0].play()
-      #window.gameaudio.flap1.play() #['flap'+game.world.x%4+1].play()
+
 
     setDataNamed 'positions', positions
 
@@ -220,13 +271,8 @@ This is a kluge to react to a ticking update
 
   # "Client" code that draws the state of the game onto the canvas
   Leisure.renderCanvas = ->
-    #gamecanvas = findViews('canvas').find('#gamecanvas')[0]
-    #if getDataNamed('tickState').ticking
       data = getDataNamed 'game'
       render_world gamecanvas, data.world
-    #else
-      #ctx = gamecanvas.getContext '2d'
-      #ctx.clearRect(0,0,gamecanvas.width,gamecanvas.height)
 
   make_sprite = (color,uid)->
     bodysprite = findViews('canvas').find('#body')[0]
@@ -257,7 +303,6 @@ This is a kluge to react to a ticking update
     ctx = gamecanvas.getContext '2d'
     x = world.x
     frontoffset = calc_offset(x,1,1)
-     #skipone = (Math.floor(x/(gamecanvas.width*4))*gamecanvas.width*4)+gamecanvas.width
     doublefrontoffset = calc_offset(x,3,0.75)
     pipes = world.pipes
     players = world.players
