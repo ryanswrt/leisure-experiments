@@ -1,4 +1,4 @@
-* Chat
+* Leisurely Bird
 
 [[org:state/userName]]
 [[org:canvas]]
@@ -23,16 +23,16 @@ world:
     - {y: 250,x: 550}
   players:
 
-  demo:
-    - {
-        id: 0,
-        y: 200,
-        yv: 0,
-        name: 'Zombie',
-        color: 'rgb(255,0,0)',
-        alive: true,
-        immortality : 2
-      }
+  constants:
+     flap_power : 10  #delta y vector every time bird flaps
+     gap_size : 80    #space for bird to fly through & width of pipes
+     speed : 5        #speed x advances with
+     spacing : 150    #space between pipes
+     gravity : -0.91  #y vector every tick
+     tickspeed : 50   #tick speed in milliseconds
+     gameheight : 400
+     gamefloor : 25   #thickness of green floor at the bottom of the screen
+
 #+END_SRC
 
 #+NAME: positions
@@ -59,6 +59,8 @@ userName: Anon
 #+BEGIN_SRC yaml :local
 type: canvas
 #+END_SRC
+
+* Views
 
 This is a kluge to react to a ticking update
 #+BEGIN_SRC html :defview ticking
@@ -119,17 +121,9 @@ This is a kluge to react to a ticking update
 #+END_SRC
 
 
-
+* Source
 #+BEGIN_SRC coffee :results def
   ## Constants
-  flap_power = 10  #delta y vector every time bird flaps
-  gap_size = 80    #space for bird to fly through & width of pipes
-  speed = 5        #speed x advances with
-  spacing = 150    #space between pipes
-  gravity = -0.91  #y vector every tick
-  tickspeed = 50   #tick speed in milliseconds
-  gameheight = 400
-  gamefloor = 25   #thickness of green floor at the bottom of the screen
   {
     getDataNamed,
     setDataNamed,
@@ -169,7 +163,8 @@ This is a kluge to react to a ticking update
     window.gameimages.bottompipe = canvas.find("#bottompipe")[0]
     window.gameimages.toppipe = canvas.find("#toppipe")[0]
     gamecanvas.width = 250;
-    gamecanvas.height = gameheight;
+    game =getDataNamed 'game'
+    gamecanvas.height = game.world.constants.gameheight;
 
   ##Action on "flap" button press
   Leisure.flap = ->
@@ -193,7 +188,7 @@ This is a kluge to react to a ticking update
       setDataNamed 'game', game
     else #Update the player's y velocity
       user = positions.playerpositions[userId]
-      user[1] = -flap_power
+      user[1] = -game.world.constants.flap_power
       positions.playerpositions[userId] = user
       #console.log(window.gameaudio.flap1)
       rnd = Math.floor( 1 + 4 * Math.random())
@@ -213,6 +208,7 @@ This is a kluge to react to a ticking update
       setDataNamed 'tickState', data
       doTick()
 
+  # "Server" code that manages running the main game loop
   doTick = (data)->
     tick = getDataNamed 'tickState'
     if tick.ticking
@@ -220,17 +216,17 @@ This is a kluge to react to a ticking update
       #gamecanvas = findViews('canvas').find('#gamecanvas')[0]
       data.world = simulate_world(data.world)
       setDataNamed 'game', data
-      window.setTimeout doTick, tickspeed
+      window.setTimeout doTick, data.world.constants.tickspeed
 
-
+  # "Client" code that draws the state of the game onto the canvas
   Leisure.renderCanvas = ->
     #gamecanvas = findViews('canvas').find('#gamecanvas')[0]
-    if getDataNamed('tickState').ticking
+    #if getDataNamed('tickState').ticking
       data = getDataNamed 'game'
       render_world gamecanvas, data.world
-    else
-      ctx = gamecanvas.getContext '2d'
-      ctx.clearRect(0,0,gamecanvas.width,gamecanvas.height)
+    #else
+      #ctx = gamecanvas.getContext '2d'
+      #ctx.clearRect(0,0,gamecanvas.width,gamecanvas.height)
 
   make_sprite = (color,uid)->
     bodysprite = findViews('canvas').find('#body')[0]
@@ -251,6 +247,7 @@ This is a kluge to react to a ticking update
 
     ctx.drawImage(tempcanvas,0,0)
     ctx.drawImage(eyessprite,0,0)
+
   calc_offset = (x,multiples,speed) ->
     (Math.floor((x*speed)/(gamecanvas.width*multiples))*gamecanvas.width*multiples)-(x*speed)
 
@@ -267,7 +264,7 @@ This is a kluge to react to a ticking update
     ctx.clearRect(0,0,gamecanvas.width,gamecanvas.height)
     #ctx.fillStyle ='rgba(100,255,100,1)'
     #ctx.fillRect(0,gamecanvas.height-gamefloor,gamecanvas.width,gamefloor)
-    ctx.drawImage(window.gameimages.ground,frontoffset,gamecanvas.height-gamefloor)
+    ctx.drawImage(window.gameimages.ground,frontoffset,gamecanvas.height-world.constants.gamefloor)
 
 
     ctx.drawImage(window.gameimages.farclouds,256+calc_offset(x,3,0.5),105)
@@ -277,7 +274,7 @@ This is a kluge to react to a ticking update
     pipes.forEach (pipe)->
       #ctx.fillRect(pipe.x,0,50,pipe.y)
       ctx.drawImage(window.gameimages.toppipe,pipe.x,pipe.y - window.gameimages.toppipe.height)
-      ctx.drawImage(window.gameimages.bottompipe,pipe.x,pipe.y+gap_size)
+      ctx.drawImage(window.gameimages.bottompipe,pipe.x,pipe.y+world.constants.gap_size)
         #ctx.fillRect(pipe.x,pipe.y+gap_size,50,gamecanvas.height-(pipe.y+gap_size))
 
     currentpipe_x = pipes[0].x
@@ -313,19 +310,19 @@ This is a kluge to react to a ticking update
   # if they are off screen
   simulate_world = (world)->
     positions = getDataNamed 'positions'
-    world.x += speed
+    world.x += world.constants.speed
     if world.players
       world.players.forEach (player)->
         if player.alive
           y = positions.playerpositions[player.id][0]
           yv = positions.playerpositions[player.id][1]
-          positions.playerpositions[player.id][1] = yv - gravity
+          positions.playerpositions[player.id][1] = yv - world.constants.gravity
           y = positions.playerpositions[player.id][0] += positions.playerpositions[player.id][1]
-          player.immortality -= tickspeed/1000
-          groundCrash = y + 15 > gamecanvas.height-gamefloor
+          player.immortality -= world.constants.tickspeed/1000
+          groundCrash = y + 15 > gamecanvas.height-world.constants.gamefloor
           if groundCrash ||
           (world.pipes[0].x < 65 && world.pipes[0].x > 0) &&
-          (y + 15 > world.pipes[0].y + gap_size || y < world.pipes[0].y)
+          (y + 15 > world.pipes[0].y + world.constants.gap_size || y < world.pipes[0].y)
 
             if player.immortality < 0
               player.alive = false
@@ -337,9 +334,9 @@ This is a kluge to react to a ticking update
           positions.playerpositions[player.id][1] = 0
 
 
-    if world.pipes[0].x < 0 - gap_size
+    if world.pipes[0].x < 0 - world.constants.gap_size
         world.pipes.shift()
-        world.pipes.push({x:world.pipes[world.pipes.length-1].x+spacing,y:Math.random()*(gameheight-250)+75})
+        world.pipes.push({x:world.pipes[world.pipes.length-1].x+world.constants.spacing,y:Math.random()*(world.constants.gameheight-250)+75})
         if world.players
           world.players.forEach (player)->
             player.score += 1
@@ -353,7 +350,7 @@ This is a kluge to react to a ticking update
               #console.log window.gameaudio.score1
               window.gameaudio.score1.play()
     world.pipes.forEach (pipe)->
-      pipe.x -= speed
+      pipe.x -= world.constants.speed
 
     setDataNamed 'positions', positions
     world
